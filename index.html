@@ -1,0 +1,1496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HX — Haute Horlogerie 3D Experience</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:wght@600;700;800&family=Cinzel:wght@400;600;700;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Three.js & Controls -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/canvas-confetti/1.6.0/confetti.browser.min.js"></script>
+
+  <style>
+    :root {
+      --bg-dark: #04080e;
+      --gold-primary: #d4af37;
+      --gold-light: #f5e298;
+      --gold-dark: #8c7322;
+      --text-main: #f0f4f8;
+      --text-muted: #8e9ea9;
+      --glass: rgba(14, 25, 40, 0.65);
+      --glass-border: rgba(212, 175, 55, 0.25);
+      --font-serif: 'Cinzel', serif;
+      --font-sans: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      overflow-x: hidden;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    /* 3D Canvas container */
+    #canvas-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      outline: none;
+    }
+
+    /* Cinematic Vignette & Ambient Glow */
+    .cinematic-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 2;
+      pointer-events: none;
+      background: radial-gradient(circle at 50% 50%, transparent 45%, rgba(2, 5, 9, 0.85) 90%),
+                  radial-gradient(circle at 80% 20%, rgba(212, 175, 55, 0.08) 0%, transparent 40%);
+    }
+
+    /* Navigation Header */
+    header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      z-index: 10;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1.8rem 3.5rem;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      background: linear-gradient(180deg, rgba(4, 8, 14, 0.8) 0%, transparent 100%);
+    }
+
+    .brand-logo {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .brand-symbol {
+      width: 38px;
+      height: 38px;
+      border: 1.5px solid var(--gold-primary);
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      box-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
+      position: relative;
+    }
+
+    .brand-symbol::after {
+      content: '';
+      width: 14px;
+      height: 14px;
+      border: 1px solid var(--gold-light);
+      transform: rotate(45deg);
+    }
+
+    .brand-name {
+      font-family: 'Bodoni Moda', var(--font-serif);
+      font-size: 2rem;
+      font-weight: 700;
+      line-height: 1;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      background: linear-gradient(135deg, #fff 30%, var(--gold-primary) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 0 12px rgba(212, 175, 55, 0.18));
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 2rem;
+    }
+
+    .time-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-size: 0.85rem;
+      letter-spacing: 0.1em;
+      color: var(--gold-light);
+      background: rgba(212, 175, 55, 0.1);
+      padding: 0.4rem 1rem;
+      border-radius: 20px;
+      border: 1px solid var(--glass-border);
+    }
+
+    .pulse-dot {
+      width: 7px;
+      height: 7px;
+      background: #4ade80;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #4ade80;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+
+    /* UI Layout Floating Layer */
+    .ui-layer {
+      position: fixed;
+      inset: 0;
+      z-index: 5;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 7rem 3.5rem 2.5rem;
+    }
+
+    .hero-panel {
+      max-width: 520px;
+      pointer-events: auto;
+      animation: fadeIn 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .series-tag {
+      display: inline-block;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: var(--gold-primary);
+      margin-bottom: 0.8rem;
+    }
+
+    .hero-title {
+      font-family: var(--font-serif);
+      font-size: clamp(2.4rem, 4.2vw, 3.8rem);
+      line-height: 1.1;
+      font-weight: 900;
+      margin-bottom: 1rem;
+      letter-spacing: -0.02em;
+    }
+
+    .hero-title span {
+      display: block;
+      background: linear-gradient(135deg, #ffffff 40%, var(--gold-light) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-desc {
+      font-size: 0.95rem;
+      line-height: 1.7;
+      color: var(--text-muted);
+      margin-bottom: 1.8rem;
+      max-width: 440px;
+    }
+
+    .specs-strip {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.8rem;
+      margin-bottom: 2rem;
+    }
+
+    .spec-item {
+      background: var(--glass);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 0.75rem 1rem;
+      border-radius: 12px;
+    }
+
+    .spec-val {
+      font-family: var(--font-serif);
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .spec-lbl {
+      font-size: 0.68rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-top: 0.15rem;
+    }
+
+    .hero-cta-group {
+      display: flex;
+      align-items: center;
+      gap: 1.2rem;
+    }
+
+    .btn-lux {
+      cursor: pointer;
+      font-family: var(--font-sans);
+      font-size: 0.85rem;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 1rem 2.2rem;
+      border-radius: 30px;
+      border: none;
+      color: #04080e;
+      background: linear-gradient(135deg, var(--gold-light) 0%, var(--gold-primary) 60%, var(--gold-dark) 100%);
+      box-shadow: 0 10px 25px rgba(212, 175, 55, 0.35);
+      transition: all 0.3s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .btn-lux:hover {
+      transform: translateY(-3px) scale(1.02);
+      box-shadow: 0 15px 35px rgba(212, 175, 55, 0.5);
+    }
+
+    .btn-secondary {
+      cursor: pointer;
+      font-family: var(--font-sans);
+      font-size: 0.85rem;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      padding: 1rem 1.6rem;
+      border-radius: 30px;
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-main);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(8px);
+      transition: all 0.3s ease;
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.12);
+      border-color: var(--gold-primary);
+    }
+
+    /* 3D Interactive Controls Dock (Bottom Right) */
+    .controls-dock {
+      position: fixed;
+      bottom: 2.2rem;
+      right: 3.5rem;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      pointer-events: auto;
+    }
+
+    .customizer-box {
+      background: var(--glass);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border);
+      padding: 1.25rem 1.4rem;
+      border-radius: 20px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+      width: 290px;
+    }
+
+    .customizer-title {
+      font-size: 0.75rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--gold-light);
+      margin-bottom: 0.9rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .watch-picker {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.45rem;
+      margin-bottom: 1rem;
+    }
+
+    .watch-option {
+      min-width: 0;
+      padding: 0.55rem 0.65rem;
+      text-align: left;
+      color: var(--text-muted);
+      background: rgba(255, 255, 255, 0.035);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.2s;
+    }
+
+    .watch-option:hover {
+      transform: translateY(-1px);
+      border-color: rgba(212, 175, 55, 0.6);
+      color: var(--text-main);
+    }
+
+    .watch-option.active {
+      color: var(--gold-light);
+      background: rgba(212, 175, 55, 0.12);
+      border-color: var(--gold-primary);
+    }
+
+    .watch-option strong,
+    .watch-option span {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .watch-option strong {
+      font-size: 0.7rem;
+      letter-spacing: 0.06em;
+    }
+
+    .watch-option span {
+      margin-top: 0.18rem;
+      font-size: 0.58rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      opacity: 0.8;
+    }
+
+    .color-picker-row {
+      display: flex;
+      gap: 0.7rem;
+      margin-bottom: 1.1rem;
+    }
+
+    .color-swatch {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: transform 0.2s, border-color 0.2s;
+      position: relative;
+    }
+
+    .color-swatch:hover {
+      transform: scale(1.15);
+    }
+
+    .color-swatch.active {
+      border-color: #fff;
+      transform: scale(1.18);
+      box-shadow: 0 0 12px rgba(255, 255, 255, 0.4);
+    }
+
+    .swatch-gold { background: linear-gradient(135deg, #fce08c, #c59b27); }
+    .swatch-titanium { background: linear-gradient(135deg, #99aab8, #4f5d69); }
+    .swatch-obsidian { background: linear-gradient(135deg, #2a2d34, #0d0f12); }
+    .swatch-rose { background: linear-gradient(135deg, #f5b7a7, #b86253); }
+
+    /* Interactive View Buttons */
+    .view-buttons-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.4rem;
+    }
+
+    .view-btn {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--text-main);
+      padding: 0.45rem 0.2rem;
+      border-radius: 8px;
+      font-size: 0.68rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+      text-transform: uppercase;
+    }
+
+    .view-btn:hover, .view-btn.active {
+      background: var(--gold-primary);
+      color: #000;
+      border-color: var(--gold-primary);
+    }
+
+    .toggle-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 0.8rem;
+      padding-top: 0.8rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 36px;
+      height: 20px;
+    }
+
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background-color: rgba(255, 255, 255, 0.15);
+      transition: .3s;
+      border-radius: 20px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 14px;
+      width: 14px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .3s;
+      border-radius: 50%;
+    }
+
+    input:checked + .slider { background-color: var(--gold-primary); }
+    input:checked + .slider:before { transform: translateX(16px); }
+
+    /* Instruction Badge */
+    .interaction-hint {
+      position: fixed;
+      bottom: 2.2rem;
+      left: 3.5rem;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      background: rgba(4, 8, 14, 0.7);
+      backdrop-filter: blur(10px);
+      padding: 0.6rem 1.1rem;
+      border-radius: 30px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      pointer-events: auto;
+    }
+
+    .interaction-hint svg {
+      width: 18px;
+      height: 18px;
+      stroke: var(--gold-primary);
+      animation: rotateHint 4s linear infinite;
+    }
+
+    @keyframes rotateHint {
+      0% { transform: rotate(0deg); }
+      50% { transform: rotate(180deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* Modal for Reservation */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(15px);
+      z-index: 100;
+      display: none;
+      place-items: center;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .modal-backdrop.open {
+      display: grid;
+      opacity: 1;
+    }
+
+    .modal-card {
+      background: #08111a;
+      border: 1px solid var(--gold-primary);
+      border-radius: 24px;
+      padding: 2.5rem;
+      max-width: 440px;
+      width: 90%;
+      text-align: center;
+      box-shadow: 0 25px 60px rgba(212, 175, 55, 0.25);
+      position: relative;
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 1.2rem;
+      right: 1.4rem;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 1.5rem;
+      cursor: pointer;
+    }
+
+    .modal-card h3 {
+      font-family: var(--font-serif);
+      font-size: 1.8rem;
+      color: var(--gold-light);
+      margin-bottom: 0.8rem;
+    }
+
+    .modal-card p {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin-bottom: 1.8rem;
+      line-height: 1.6;
+    }
+
+    .modal-input {
+      width: 100%;
+      padding: 0.9rem 1.2rem;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 12px;
+      color: #fff;
+      font-family: inherit;
+      margin-bottom: 1.2rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .modal-input:focus {
+      border-color: var(--gold-primary);
+    }
+
+    /* Audio Mute Floating Button */
+    .audio-btn {
+      position: fixed;
+      top: 1.8rem;
+      right: 1.8rem;
+      z-index: 15;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      color: var(--gold-primary);
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .audio-btn:hover {
+      transform: scale(1.1);
+      background: var(--gold-primary);
+      color: #000;
+    }
+
+    /* Responsive */
+    @media (max-width: 968px) {
+      body {
+        width: 100%;
+        height: auto;
+        min-height: 100vh;
+        overflow-y: auto;
+      }
+
+      header { padding: 1.2rem 1.8rem; }
+      .ui-layer {
+        position: relative;
+        inset: auto;
+        min-height: 0;
+        padding: 7rem 1.2rem 1.6rem;
+      }
+      .hero-panel { max-width: 100%; }
+      .controls-dock {
+        position: relative;
+        right: auto;
+        bottom: auto;
+        width: calc(100% - 2.4rem);
+        max-height: none;
+        overflow: visible;
+        margin: 0 auto 2rem;
+      }
+      .customizer-box { width: 100%; }
+      .interaction-hint { display: none; }
+      .hero-title { font-size: 2.2rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Audio Toggle -->
+  <button class="audio-btn" id="audioToggle" title="Toggle Mechanical Tick & Audio">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+      <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+    </svg>
+  </button>
+
+  <!-- Navigation -->
+  <header>
+    <a href="#" class="brand-logo">
+      <div class="brand-symbol"></div>
+      <div class="brand-name" aria-label="HX">HX</div>
+    </a>
+    <div class="header-actions">
+      <div class="time-badge">
+        <span class="pulse-dot"></span>
+        <span id="liveClock">GENÈVE 12:00:00</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Background 3D Viewport -->
+  <div id="canvas-container"></div>
+  <div class="cinematic-overlay"></div>
+
+  <!-- Foreground UI Overlay -->
+  <div class="ui-layer">
+    <div class="hero-panel">
+      <span class="series-tag" id="seriesTag">CALIBRE ROYAL • PIÈCE UNIQUE</span>
+      <h1 class="hero-title">
+        <span id="heroTitle">AURELIAN 47</span>
+        <span id="heroSubtitle">TOURBILLON</span>
+      </h1>
+      <p class="hero-desc" id="heroDescription">
+        A symphony of micro-engineering sculpted in precious metals. Features an open-heart tourbillon escapement, sapphire crystal dome, and real-time kinetic physics.
+      </p>
+
+      <div class="specs-strip">
+        <div class="spec-item">
+          <div class="spec-val" id="caseSpec">41.5<span style="font-size:0.7em">mm</span></div>
+          <div class="spec-lbl">Diameter</div>
+        </div>
+        <div class="spec-item">
+          <div class="spec-val" id="rateSpec">28,800</div>
+          <div class="spec-lbl">Vibrations/H</div>
+        </div>
+        <div class="spec-item">
+          <div class="spec-val" id="reserveSpec">80<span style="font-size:0.7em">hrs</span></div>
+          <div class="spec-lbl">Reserve</div>
+        </div>
+      </div>
+
+      <div class="hero-cta-group">
+        <button class="btn-lux" id="reserveBtn">
+          Reserve Piece
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+            <polyline points="12 5 19 12 12 19"></polyline>
+          </svg>
+        </button>
+        <button class="btn-secondary" id="explodeBtn">Explode View</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Interactive 3D Controls Dock -->
+  <div class="controls-dock">
+    <div class="customizer-box">
+      <div class="customizer-title">
+        <span>Bespoke Atelier</span>
+        <span style="color:var(--text-muted);font-size:0.65rem;">3D CONFIG</span>
+      </div>
+
+      <div class="watch-picker" role="group" aria-label="Choose a watch model">
+        <button class="watch-option active" type="button" data-watch="aurelian" aria-pressed="true">
+          <strong>Aurelian 47</strong><span>Tourbillon</span>
+        </button>
+        <button class="watch-option" type="button" data-watch="nocturne" aria-pressed="false">
+          <strong>Nocturne</strong><span>Chronograph</span>
+        </button>
+        <button class="watch-option" type="button" data-watch="meridian" aria-pressed="false">
+          <strong>Meridian</strong><span>World timer</span>
+        </button>
+        <button class="watch-option" type="button" data-watch="celeste" aria-pressed="false">
+          <strong>Céleste</strong><span>Moonphase</span>
+        </button>
+      </div>
+
+      <!-- Color Swatches -->
+      <div class="color-picker-row">
+        <div class="color-swatch swatch-gold active" data-material="gold" title="Imperial 18K Yellow Gold"></div>
+        <div class="color-swatch swatch-titanium" data-material="titanium" title="Aerospace Grade 5 Titanium"></div>
+        <div class="color-swatch swatch-obsidian" data-material="obsidian" title="Diamond-Like Carbon (DLC) Black"></div>
+        <div class="color-swatch swatch-rose" data-material="rose" title="5N Rose Gold"></div>
+      </div>
+
+      <!-- Angles Selector -->
+      <div class="view-buttons-row">
+        <button class="view-btn active" data-cam="front">Front</button>
+        <button class="view-btn" data-cam="angle">Angled</button>
+        <button class="view-btn" data-cam="side">Profile</button>
+        <button class="view-btn" data-cam="back">Movement</button>
+      </div>
+
+      <!-- Rotation Switch -->
+      <div class="toggle-row">
+        <span>Auto-Turntable Rotation</span>
+        <label class="switch">
+          <input type="checkbox" id="autoRotateToggle" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- User Interaction Hint -->
+  <div class="interaction-hint">
+    <svg viewBox="0 0 24 24" fill="none">
+      <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+      <path d="M3 3v5h5"/>
+      <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/>
+      <path d="M16 21h5v-5"/>
+    </svg>
+    <span>Left Click & Drag to inspect 360° • Scroll to Zoom</span>
+  </div>
+
+  <!-- Reservation Modal -->
+  <div class="modal-backdrop" id="reserveModal">
+    <div class="modal-card">
+      <button class="modal-close" id="closeModal">&times;</button>
+      <h3>Acquire Your Piece</h3>
+      <p>Each chronometer is hand-assembled in Le Brassus and engraved with your personalized monogram.</p>
+      <input type="text" class="modal-input" placeholder="Your Full Name" id="nameInput" />
+      <input type="email" class="modal-input" placeholder="Private VIP Concierge Email" id="emailInput" />
+      <button class="btn-lux" style="width:100%;justify-content:center;" id="submitReservation">Confirm VIP Allocation</button>
+    </div>
+  </div>
+
+  <!-- Three.js 3D Watch Engine Script -->
+  <script>
+    // --- Clock update ---
+    function updateClock() {
+      const now = new Date();
+      const h = String(now.getHours()).padStart(2, '0');
+      const m = String(now.getMinutes()).padStart(2, '0');
+      const s = String(now.getSeconds()).padStart(2, '0');
+      document.getElementById('liveClock').innerText = `GENÈVE ${h}:${m}:${s}`;
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // --- Web Audio Synthesizer (Mechanical Ticking & Shutter FX) ---
+    let audioCtx = null;
+    let audioEnabled = false;
+
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+    }
+
+    function playTickSound() {
+      if (!audioEnabled || !audioCtx) return;
+      try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(1400 + Math.random() * 200, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.015, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.04);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.04);
+      } catch (e) {}
+    }
+
+    function playChimeSound() {
+      if (!audioCtx) initAudio();
+      try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(1760, audioCtx.currentTime + 0.5);
+        gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.2);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 1.2);
+      } catch (e) {}
+    }
+
+    const audioToggle = document.getElementById('audioToggle');
+    audioToggle.addEventListener('click', () => {
+      initAudio();
+      audioEnabled = !audioEnabled;
+      audioToggle.style.color = audioEnabled ? '#4ade80' : 'var(--gold-primary)';
+      if (audioEnabled) playChimeSound();
+    });
+
+    // --- THREE.JS HIGH-END LUXURY WATCH MODELING ---
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+
+    // Camera setup (placed comfortably right to center watch between text & screen)
+    const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(2.8, 1.2, 5.2);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.35;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    container.appendChild(renderer.domElement);
+
+    // Orbit controls with smooth damping
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.maxDistance = 8.5;
+    controls.minDistance = 2.2;
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 0.9;
+    controls.target.set(0.6, 0, 0);
+
+    // Environment Lighting (Studio Grade PBR)
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+    scene.add(ambientLight);
+
+    const keyLight = new THREE.DirectionalLight(0xffeedd, 3.2);
+    keyLight.position.set(5, 8, 5);
+    keyLight.castShadow = true;
+    scene.add(keyLight);
+
+    const rimLight = new THREE.DirectionalLight(0x8bc34a, 1.5);
+    rimLight.position.set(-6, -2, -4);
+    scene.add(rimLight);
+
+    const blueFill = new THREE.DirectionalLight(0x4ba3e3, 2.0);
+    blueFill.position.set(-5, 4, 3);
+    scene.add(blueFill);
+
+    const warmUnder = new THREE.PointLight(0xd4af37, 2.5, 8);
+    warmUnder.position.set(0, -2.5, 2);
+    scene.add(warmUnder);
+
+    // Watch Hierarchy Groups
+    const watchRoot = new THREE.Group();
+    watchRoot.position.set(0.6, 0, 0);
+    scene.add(watchRoot);
+
+    // Explodable groups for interactive disassembly view
+    const caseGroup = new THREE.Group();
+    const dialGroup = new THREE.Group();
+    const movementGroup = new THREE.Group();
+    const glassGroup = new THREE.Group();
+    const strapGroup = new THREE.Group();
+
+    watchRoot.add(caseGroup);
+    watchRoot.add(dialGroup);
+    watchRoot.add(movementGroup);
+    watchRoot.add(glassGroup);
+    watchRoot.add(strapGroup);
+
+    // --- MATERIALS DEFINITIONS ---
+    const materialPresets = {
+      gold: {
+        color: 0xd4af37,
+        metalness: 0.92,
+        roughness: 0.18,
+        specular: 0xffffff
+      },
+      titanium: {
+        color: 0x8a9ba8,
+        metalness: 0.88,
+        roughness: 0.28,
+        specular: 0xcccccc
+      },
+      obsidian: {
+        color: 0x181a1e,
+        metalness: 0.75,
+        roughness: 0.12,
+        specular: 0x555555
+      },
+      rose: {
+        color: 0xe09b8b,
+        metalness: 0.92,
+        roughness: 0.18,
+        specular: 0xffffff
+      }
+    };
+
+    const watchCatalog = {
+      aurelian: {
+        series: 'CALIBRE ROYAL • PIÈCE UNIQUE',
+        title: 'AURELIAN 47',
+        subtitle: 'TOURBILLON',
+        description: 'A symphony of micro-engineering sculpted in precious metals. An open-heart tourbillon, sapphire crystal dome, and hand-finished guilloché dial.',
+        diameter: '41.5',
+        rate: '28,800',
+        reserve: '80',
+        case: 'gold',
+        dial: 0x07111c,
+        accent: 0xd4af37,
+        strap: 0x0f151d,
+        complication: 'tourbillon'
+      },
+      nocturne: {
+        series: 'NOCTURNE COLLECTION • AUTOMATIC',
+        title: 'NOCTURNE',
+        subtitle: 'CHRONOGRAPH',
+        description: 'A precision instrument for the hours after dark. Three finely balanced counters meet a midnight-blue dial and a lightweight titanium case.',
+        diameter: '40',
+        rate: '36,000',
+        reserve: '60',
+        case: 'titanium',
+        dial: 0x071a2d,
+        accent: 0xb2d8e9,
+        strap: 0x0a1624,
+        complication: 'chronograph'
+      },
+      meridian: {
+        series: 'MERIDIAN COLLECTION • WORLD TIMER',
+        title: 'MERIDIAN',
+        subtitle: 'DUAL TIME',
+        description: 'Made for the naturally curious. A deep evergreen dial, luminous markers, and a second time-zone hand keep every journey in perspective.',
+        diameter: '42',
+        rate: '28,800',
+        reserve: '72',
+        case: 'obsidian',
+        dial: 0x10353a,
+        accent: 0xc3d5bc,
+        strap: 0x13322e,
+        complication: 'gmt'
+      },
+      celeste: {
+        series: 'CÉLESTE COLLECTION • LIMITED EDITION',
+        title: 'CÉLESTE',
+        subtitle: 'MOONPHASE',
+        description: 'A romantic expression of haute horlogerie. Rose gold frames a midnight sky, with a sculpted moonphase display for the quietest hours.',
+        diameter: '38.5',
+        rate: '28,800',
+        reserve: '65',
+        case: 'rose',
+        dial: 0x202234,
+        accent: 0xf3d8ad,
+        strap: 0x382631,
+        complication: 'moonphase'
+      }
+    };
+
+    let activePreset = 'gold';
+
+    // Main Case Material
+    const caseMaterial = new THREE.MeshStandardMaterial({
+      color: materialPresets.gold.color,
+      metalness: materialPresets.gold.metalness,
+      roughness: materialPresets.gold.roughness,
+    });
+
+    const bezelMaterial = new THREE.MeshStandardMaterial({
+      color: 0x111620,
+      metalness: 0.85,
+      roughness: 0.2
+    });
+
+    const dialFaceMaterial = new THREE.MeshStandardMaterial({
+      color: 0x07111c,
+      metalness: 0.35,
+      roughness: 0.25
+    });
+
+    const goldAccentMaterial = new THREE.MeshStandardMaterial({
+      color: 0xd4af37,
+      metalness: 0.95,
+      roughness: 0.12
+    });
+
+    const crystalGlassMaterial = new THREE.MeshPhysicalMaterial({
+      color: 0xffffff,
+      metalness: 0.05,
+      roughness: 0.04,
+      transmission: 0.96,
+      transparent: true,
+      opacity: 0.45,
+      reflectivity: 0.9,
+      clearcoat: 1.0,
+      clearcoatRoughness: 0.05,
+      ior: 1.77 // Sapphire index
+    });
+
+    const strapMaterial = new THREE.MeshStandardMaterial({
+      color: 0x0f151d,
+      roughness: 0.65,
+      metalness: 0.15
+    });
+
+    // --- PROCEDURAL HIGH PRECISION GEOMETRY BUILD ---
+
+    // 1. WATCH CASE & BEZEL
+    const caseGeo = new THREE.CylinderGeometry(1.42, 1.38, 0.32, 64, 1, true);
+    const caseMesh = new THREE.Mesh(caseGeo, caseMaterial);
+    caseMesh.rotation.x = Math.PI / 2;
+    caseGroup.add(caseMesh);
+
+    // Outer Faceted Bezel Ring
+    const bezelGeo = new THREE.TorusGeometry(1.42, 0.08, 16, 64);
+    const bezelMesh = new THREE.Mesh(bezelGeo, bezelMaterial);
+    caseGroup.add(bezelMesh);
+
+    // Crown at 3 o'clock
+    const crownGeo = new THREE.CylinderGeometry(0.18, 0.18, 0.22, 24);
+    const crownMesh = new THREE.Mesh(crownGeo, caseMaterial);
+    crownMesh.rotation.z = Math.PI / 2;
+    crownMesh.position.set(1.52, 0, 0);
+    caseGroup.add(crownMesh);
+
+    // Crown Jewel (Cabochon)
+    const crownJewelGeo = new THREE.SphereGeometry(0.08, 16, 16);
+    const crownJewelMat = new THREE.MeshStandardMaterial({ color: 0x0a66c2, roughness: 0.1, metalness: 0.1 });
+    const crownJewel = new THREE.Mesh(crownJewelGeo, crownJewelMat);
+    crownJewel.position.set(1.64, 0, 0);
+    caseGroup.add(crownJewel);
+
+    // 2. DIAL & INDICES
+    const dialPlateGeo = new THREE.CylinderGeometry(1.32, 1.32, 0.04, 64);
+    const dialPlate = new THREE.Mesh(dialPlateGeo, dialFaceMaterial);
+    dialPlate.rotation.x = Math.PI / 2;
+    dialPlate.position.z = 0.05;
+    dialGroup.add(dialPlate);
+
+    // Guilloché concentric rings on dial
+    for (let r = 0.35; r <= 1.25; r += 0.18) {
+      const ringGeo = new THREE.RingGeometry(r, r + 0.008, 64);
+      const ringMesh = new THREE.Mesh(ringGeo, goldAccentMaterial);
+      ringMesh.position.z = 0.075;
+      dialGroup.add(ringMesh);
+    }
+
+    // Hour Markers (12 Indices)
+    for (let i = 0; i < 12; i++) {
+      const angle = (i / 12) * Math.PI * 2;
+      const isQuarter = (i % 3 === 0);
+      const markerW = isQuarter ? 0.06 : 0.035;
+      const markerH = isQuarter ? 0.22 : 0.14;
+      const markerGeo = new THREE.BoxGeometry(markerW, markerH, 0.03);
+      const marker = new THREE.Mesh(markerGeo, goldAccentMaterial);
+
+      const rad = 1.05;
+      marker.position.x = Math.sin(angle) * rad;
+      marker.position.y = Math.cos(angle) * rad;
+      marker.position.z = 0.085;
+      marker.rotation.z = -angle;
+      dialGroup.add(marker);
+    }
+
+    // Open Heart / Tourbillon Aperture at 6 o'clock
+    const tourbillonRingGeo = new THREE.RingGeometry(0.24, 0.31, 32);
+    const tourbillonRing = new THREE.Mesh(tourbillonRingGeo, goldAccentMaterial);
+    tourbillonRing.position.set(0, -0.48, 0.08);
+    dialGroup.add(tourbillonRing);
+
+    // Tourbillon Cage & Balance Wheel inside aperture
+    const balanceWheelGeo = new THREE.TorusGeometry(0.2, 0.02, 8, 24);
+    const balanceWheel = new THREE.Mesh(balanceWheelGeo, goldAccentMaterial);
+    balanceWheel.position.set(0, -0.48, 0.07);
+    movementGroup.add(balanceWheel);
+
+    const balanceCrossGeo = new THREE.BoxGeometry(0.38, 0.025, 0.015);
+    const balanceCross = new THREE.Mesh(balanceCrossGeo, goldAccentMaterial);
+    balanceWheel.add(balanceCross);
+
+    const chronographGroup = new THREE.Group();
+    for (const position of [[-0.45, 0.42], [0.45, 0.42], [0, -0.52]]) {
+      const subdial = new THREE.Mesh(
+        new THREE.RingGeometry(0.16, 0.19, 32),
+        goldAccentMaterial
+      );
+      subdial.position.set(position[0], position[1], 0.09);
+      chronographGroup.add(subdial);
+
+      const subdialHand = new THREE.Mesh(
+        new THREE.BoxGeometry(0.012, 0.13, 0.012),
+        goldAccentMaterial
+      );
+      subdialHand.position.set(position[0], position[1] + 0.045, 0.1);
+      chronographGroup.add(subdialHand);
+    }
+    dialGroup.add(chronographGroup);
+
+    const gmtGroup = new THREE.Group();
+    const gmtHand = new THREE.Mesh(
+      new THREE.BoxGeometry(0.025, 0.76, 0.02),
+      new THREE.MeshStandardMaterial({ color: 0x65d6b4, metalness: 0.65, roughness: 0.25 })
+    );
+    gmtHand.position.y = 0.34;
+    gmtGroup.add(gmtHand);
+    gmtGroup.position.z = 0.13;
+    dialGroup.add(gmtGroup);
+
+    const moonphaseGroup = new THREE.Group();
+    const moonphaseRing = new THREE.Mesh(new THREE.RingGeometry(0.19, 0.22, 40), goldAccentMaterial);
+    moonphaseRing.position.set(0, -0.52, 0.09);
+    moonphaseGroup.add(moonphaseRing);
+    const moonphaseDisc = new THREE.Mesh(
+      new THREE.CircleGeometry(0.17, 40),
+      new THREE.MeshStandardMaterial({ color: 0xc8d5e8, metalness: 0.25, roughness: 0.35 })
+    );
+    moonphaseDisc.position.set(0.045, -0.52, 0.095);
+    moonphaseGroup.add(moonphaseDisc);
+    const moonphaseShadow = new THREE.Mesh(
+      new THREE.CircleGeometry(0.15, 40),
+      new THREE.MeshStandardMaterial({ color: 0x202234, roughness: 0.5 })
+    );
+    moonphaseShadow.position.set(0.095, -0.52, 0.1);
+    moonphaseGroup.add(moonphaseShadow);
+    dialGroup.add(moonphaseGroup);
+
+    const complicationGroups = {
+      tourbillon: [tourbillonRing, balanceWheel],
+      chronograph: [chronographGroup],
+      gmt: [gmtGroup],
+      moonphase: [moonphaseGroup]
+    };
+
+    // 3. WATCH HANDS
+    const hourHandPivot = new THREE.Group();
+    hourHandPivot.position.z = 0.12;
+    dialGroup.add(hourHandPivot);
+
+    const hourGeo = new THREE.BoxGeometry(0.045, 0.58, 0.015);
+    const hourMesh = new THREE.Mesh(hourGeo, goldAccentMaterial);
+    hourMesh.position.y = 0.26;
+    hourHandPivot.add(hourMesh);
+
+    const minuteHandPivot = new THREE.Group();
+    minuteHandPivot.position.z = 0.14;
+    dialGroup.add(minuteHandPivot);
+
+    const minGeo = new THREE.BoxGeometry(0.035, 0.88, 0.015);
+    const minMesh = new THREE.Mesh(minGeo, goldAccentMaterial);
+    minMesh.position.y = 0.4;
+    minuteHandPivot.add(minMesh);
+
+    const secondHandPivot = new THREE.Group();
+    secondHandPivot.position.z = 0.16;
+    dialGroup.add(secondHandPivot);
+
+    const secGeo = new THREE.BoxGeometry(0.015, 1.05, 0.01);
+    const secMat = new THREE.MeshStandardMaterial({ color: 0xef4444, metalness: 0.6, roughness: 0.3 });
+    const secMesh = new THREE.Mesh(secGeo, secMat);
+    secMesh.position.y = 0.42;
+    secondHandPivot.add(secMesh);
+
+    // Central Cap
+    const centerPinGeo = new THREE.CylinderGeometry(0.065, 0.065, 0.08, 16);
+    const centerPin = new THREE.Mesh(centerPinGeo, goldAccentMaterial);
+    centerPin.rotation.x = Math.PI / 2;
+    centerPin.position.z = 0.15;
+    dialGroup.add(centerPin);
+
+    // 4. SAPPHIRE CRYSTAL GLASS DOME
+    const crystalGeo = new THREE.CylinderGeometry(1.36, 1.36, 0.08, 48);
+    const crystalMesh = new THREE.Mesh(crystalGeo, crystalGlassMaterial);
+    crystalMesh.rotation.x = Math.PI / 2;
+    crystalMesh.position.z = 0.22;
+    glassGroup.add(crystalMesh);
+
+    // 5. ARTICULATED HIGH-END LEATHER / RUBBER STRAP
+    function createStrapHalf(isTop) {
+      const half = new THREE.Group();
+      const length = 1.9;
+      const segments = 12;
+      const segLen = length / segments;
+
+      for (let i = 0; i < segments; i++) {
+        const segGeo = new THREE.BoxGeometry(1.05 - (i * 0.025), segLen * 0.95, 0.16);
+        const segMesh = new THREE.Mesh(segGeo, strapMaterial);
+
+        const yOffset = (1.45 + i * segLen) * (isTop ? 1 : -1);
+        const curveCurvature = Math.sin((i / segments) * Math.PI * 0.65) * 0.45;
+
+        segMesh.position.y = yOffset;
+        segMesh.position.z = -0.08 - curveCurvature;
+        segMesh.rotation.x = (isTop ? -1 : 1) * (i * 0.08);
+        half.add(segMesh);
+      }
+
+      // Deployment Buckle / Clasp
+      const buckleGeo = new THREE.BoxGeometry(1.15, 0.22, 0.2);
+      const buckle = new THREE.Mesh(buckleGeo, caseMaterial);
+      buckle.position.y = (1.45 + length) * (isTop ? 1 : -1);
+      buckle.position.z = -0.52;
+      half.add(buckle);
+
+      return half;
+    }
+
+    strapGroup.add(createStrapHalf(true));
+    strapGroup.add(createStrapHalf(false));
+
+    // Stitched strap accents
+    const stitchMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, roughness: 0.8 });
+    for (let isTop of [1, -1]) {
+      for (let s = 0; s < 7; s++) {
+        const stitchGeo = new THREE.BoxGeometry(0.04, 0.09, 0.17);
+        const st1 = new THREE.Mesh(stitchGeo, stitchMat);
+        const st2 = new THREE.Mesh(stitchGeo, stitchMat);
+        st1.position.set(0.42, isTop * (1.6 + s * 0.22), -0.15);
+        st2.position.set(-0.42, isTop * (1.6 + s * 0.22), -0.15);
+        strapGroup.add(st1);
+        strapGroup.add(st2);
+      }
+    }
+
+    // --- ANIMATION & LOGIC LOOP ---
+    let lastSecond = -1;
+    let exploded = false;
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      // Real clock sync for hands
+      const date = new Date();
+      const ms = date.getMilliseconds();
+      const s = date.getSeconds() + ms / 1000;
+      const m = date.getMinutes() + s / 60;
+      const h = (date.getHours() % 12) + m / 60;
+
+      hourHandPivot.rotation.z = - (h / 12) * Math.PI * 2;
+      minuteHandPivot.rotation.z = - (m / 60) * Math.PI * 2;
+      secondHandPivot.rotation.z = - (s / 60) * Math.PI * 2;
+
+      // Tick audio trigger each second
+      const currentIntSec = Math.floor(s);
+      if (currentIntSec !== lastSecond) {
+        lastSecond = currentIntSec;
+        playTickSound();
+      }
+
+      // Tourbillon Balance Oscillation (Micro mechanical flutter)
+      const balanceTime = performance.now() * 0.015;
+      balanceWheel.rotation.z = Math.sin(balanceTime) * 1.8;
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    // --- EXPLODED VIEW TOGGLE (GSAP ANIMATION) ---
+    const explodeBtn = document.getElementById('explodeBtn');
+    explodeBtn.addEventListener('click', () => {
+      exploded = !exploded;
+      explodeBtn.innerText = exploded ? 'Assemble View' : 'Explode View';
+      explodeBtn.style.borderColor = exploded ? 'var(--gold-primary)' : 'rgba(255,255,255,0.15)';
+
+      const dur = 1.2;
+      const ease = 'power3.inOut';
+
+      gsap.to(glassGroup.position, { z: exploded ? 1.6 : 0, duration: dur, ease });
+      gsap.to(dialGroup.position, { z: exploded ? 0.8 : 0, duration: dur, ease });
+      gsap.to(movementGroup.position, { z: exploded ? 0.35 : 0, duration: dur, ease });
+      gsap.to(strapGroup.position, { y: exploded ? 0.4 : 0, z: exploded ? -0.8 : 0, duration: dur, ease });
+      gsap.to(caseGroup.position, { z: exploded ? -0.4 : 0, duration: dur, ease });
+    });
+
+    // --- MATERIAL CUSTOMIZER INTERACTIVITY ---
+    const swatches = document.querySelectorAll('.color-swatch');
+    swatches.forEach(swatch => {
+      swatch.addEventListener('click', () => {
+        swatches.forEach(s => s.classList.remove('active'));
+        swatch.classList.add('active');
+
+        const matKey = swatch.dataset.material;
+        const config = materialPresets[matKey];
+        if (!config) return;
+        activePreset = matKey;
+
+        gsap.to(caseMaterial.color, {
+          r: ((config.color >> 16) & 255) / 255,
+          g: ((config.color >> 8) & 255) / 255,
+          b: (config.color & 255) / 255,
+          duration: 0.6
+        });
+        caseMaterial.metalness = config.metalness;
+        caseMaterial.roughness = config.roughness;
+
+        playChimeSound();
+      });
+    });
+
+    function selectWatchModel(modelKey, animateChange = true) {
+      const model = watchCatalog[modelKey];
+      if (!model) return;
+
+      document.getElementById('seriesTag').textContent = model.series;
+      document.getElementById('heroTitle').textContent = model.title;
+      document.getElementById('heroSubtitle').textContent = model.subtitle;
+      document.getElementById('heroDescription').textContent = model.description;
+      document.getElementById('caseSpec').innerHTML = `${model.diameter}<span style="font-size:0.7em">mm</span>`;
+      document.getElementById('rateSpec').textContent = model.rate;
+      document.getElementById('reserveSpec').innerHTML = `${model.reserve}<span style="font-size:0.7em">hrs</span>`;
+
+      const caseConfig = materialPresets[model.case];
+      activePreset = model.case;
+      if (animateChange) {
+        gsap.to(caseMaterial.color, {
+          r: ((caseConfig.color >> 16) & 255) / 255,
+          g: ((caseConfig.color >> 8) & 255) / 255,
+          b: (caseConfig.color & 255) / 255,
+          duration: 0.6
+        });
+        gsap.to(dialFaceMaterial.color, {
+          r: ((model.dial >> 16) & 255) / 255,
+          g: ((model.dial >> 8) & 255) / 255,
+          b: (model.dial & 255) / 255,
+          duration: 0.6
+        });
+        gsap.to(goldAccentMaterial.color, {
+          r: ((model.accent >> 16) & 255) / 255,
+          g: ((model.accent >> 8) & 255) / 255,
+          b: (model.accent & 255) / 255,
+          duration: 0.6
+        });
+        gsap.to(strapMaterial.color, {
+          r: ((model.strap >> 16) & 255) / 255,
+          g: ((model.strap >> 8) & 255) / 255,
+          b: (model.strap & 255) / 255,
+          duration: 0.6
+        });
+      } else {
+        caseMaterial.color.setHex(caseConfig.color);
+        dialFaceMaterial.color.setHex(model.dial);
+        goldAccentMaterial.color.setHex(model.accent);
+        strapMaterial.color.setHex(model.strap);
+      }
+      caseMaterial.metalness = caseConfig.metalness;
+      caseMaterial.roughness = caseConfig.roughness;
+      secMat.color.setHex(model.accent);
+
+      Object.entries(complicationGroups).forEach(([key, parts]) => {
+        parts.forEach(part => { part.visible = key === model.complication; });
+      });
+
+      document.querySelectorAll('.watch-option').forEach(option => {
+        const isSelected = option.dataset.watch === modelKey;
+        option.classList.toggle('active', isSelected);
+        option.setAttribute('aria-pressed', String(isSelected));
+      });
+      swatches.forEach(swatch => {
+        swatch.classList.toggle('active', swatch.dataset.material === model.case);
+      });
+      playChimeSound();
+    }
+
+    document.querySelectorAll('.watch-option').forEach(option => {
+      option.addEventListener('click', () => selectWatchModel(option.dataset.watch));
+    });
+    selectWatchModel('aurelian', false);
+
+    // --- CAMERA PRESET VIEWS ---
+    const viewButtons = document.querySelectorAll('.view-btn');
+    const cameraPositions = {
+      front: { pos: [0.6, 0.1, 4.4], target: [0.6, 0, 0] },
+      angle: { pos: [2.8, 1.4, 4.2], target: [0.6, 0, 0] },
+      side: { pos: [4.6, 0.2, 0.4], target: [0.6, 0, 0] },
+      back: { pos: [0.6, 0.2, -4.6], target: [0.6, 0, 0] }
+    };
+
+    viewButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        viewButtons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        const camType = btn.dataset.cam;
+        const targetConfig = cameraPositions[camType];
+        if (!targetConfig) return;
+
+        controls.autoRotate = false;
+        document.getElementById('autoRotateToggle').checked = false;
+
+        gsap.to(camera.position, {
+          x: targetConfig.pos[0],
+          y: targetConfig.pos[1],
+          z: targetConfig.pos[2],
+          duration: 1.4,
+          ease: 'power2.inOut'
+        });
+        gsap.to(controls.target, {
+          x: targetConfig.target[0],
+          y: targetConfig.target[1],
+          z: targetConfig.target[2],
+          duration: 1.4,
+          ease: 'power2.inOut'
+        });
+      });
+    });
+
+    // --- AUTO ROTATE SWITCH ---
+    const autoRotateToggle = document.getElementById('autoRotateToggle');
+    autoRotateToggle.addEventListener('change', (e) => {
+      controls.autoRotate = e.target.checked;
+    });
+
+    // --- RESERVATION MODAL & CONFETTI CELEBRATION ---
+    const reserveBtn = document.getElementById('reserveBtn');
+    const reserveModal = document.getElementById('reserveModal');
+    const closeModal = document.getElementById('closeModal');
+    const submitReservation = document.getElementById('submitReservation');
+
+    reserveBtn.addEventListener('click', () => {
+      reserveModal.classList.add('open');
+    });
+
+    closeModal.addEventListener('click', () => {
+      reserveModal.classList.remove('open');
+    });
+
+    reserveModal.addEventListener('click', (e) => {
+      if (e.target === reserveModal) reserveModal.classList.remove('open');
+    });
+
+    submitReservation.addEventListener('click', () => {
+      const name = document.getElementById('nameInput').value.trim() || 'Distinguished Collector';
+      reserveModal.classList.remove('open');
+
+      confetti({
+        particleCount: 120,
+        spread: 80,
+        origin: { y: 0.6 },
+        colors: ['#d4af37', '#f5e298', '#ffffff', '#4ade80']
+      });
+
+      playChimeSound();
+      alert(`Allocation confirmed for ${name}. Your personal atelier concierge will be in touch shortly.`);
+    });
+
+    // --- RESIZE LISTENER ---
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>
